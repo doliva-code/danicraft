@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Danicraft</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000;font-family:'Courier New',monospace;overflow:hidden}
+#gc{width:100vw;height:100vh;position:relative}
+canvas{width:100%;height:100%;display:block}
+#menu{position:absolute;inset:0;background:linear-gradient(180deg,#1a0a2e,#0d1b2a 50%,#1a3a1a);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10}
+.mtitle{font-size:clamp(36px,8vw,72px);color:#7CFC00;text-shadow:4px 4px 0 #2d5a00,8px 8px 0 #000;letter-spacing:4px;margin-bottom:8px;animation:tp 2s ease-in-out infinite;font-weight:bold}
+@keyframes tp{0%,100%{transform:scale(1)}50%{transform:scale(1.03)}}
+.msub{color:#aaa;font-size:14px;margin-bottom:60px;letter-spacing:2px}
+.mbtn{background:#555;color:#fff;border:3px solid #888;border-bottom:4px solid #333;padding:14px 60px;font-size:18px;font-family:'Courier New',monospace;cursor:pointer;margin:8px;letter-spacing:2px;transition:all .1s;min-width:280px;text-align:center}
+.mbtn:hover{background:#777;border-color:#aaa;transform:translateY(-2px)}
+.mbtn.p{background:#4a7c2f;border-color:#7CFC00}.mbtn.p:hover{background:#5a9c3f}
+#nw{position:absolute;inset:0;background:linear-gradient(180deg,#1a0a2e,#0d1b2a);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:10}
+.stitle{color:#7CFC00;font-size:32px;margin-bottom:40px;letter-spacing:3px}
+.slbl{color:#ccc;font-size:14px;margin-bottom:8px;letter-spacing:1px}
+.sinp{background:#111;border:2px solid #555;color:#7CFC00;font-family:'Courier New',monospace;font-size:18px;padding:10px 20px;width:320px;text-align:center;margin-bottom:6px;outline:none}
+.sinp:focus{border-color:#7CFC00}.shint{color:#666;font-size:12px;margin-bottom:30px}
+#hud{position:absolute;bottom:0;left:0;right:0;display:none;flex-direction:column;align-items:center;padding-bottom:10px;z-index:5;pointer-events:none}
+#hotbar{display:flex;gap:4px;background:rgba(0,0,0,.6);border:2px solid #555;padding:4px;pointer-events:all}
+.hs{width:52px;height:52px;background:#222;border:2px solid #444;display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer}
+.hs.sel{border-color:#fff;background:#333}.hs canvas{width:36px;height:36px;image-rendering:pixelated}
+.sc{position:absolute;bottom:2px;right:4px;font-size:11px;color:#fff;font-weight:bold;text-shadow:1px 1px 0 #000}
+#invover{position:absolute;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:8}
+#invbox{background:#c6c6c6;border:3px solid #555;padding:16px;min-width:360px}
+.it{color:#111;font-size:14px;margin-bottom:12px}
+.ig{display:grid;grid-template-columns:repeat(9,44px);gap:4px;margin-bottom:12px}
+.is{width:44px;height:44px;background:#8b8b8b;border:2px solid #373737;border-right-color:#fff;border-bottom-color:#fff;display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer}
+.is:hover{background:#9b9b9b}.is canvas{width:32px;height:32px;image-rendering:pixelated}
+.isc{position:absolute;bottom:1px;right:3px;font-size:10px;color:#fff;font-weight:bold;text-shadow:1px 1px 0 #000}
+#ch{position:absolute;top:10px;right:10px;color:#aaa;font-size:11px;text-align:right;background:rgba(0,0,0,.5);padding:8px 12px;line-height:1.8;z-index:5;pointer-events:none;display:none}
+#sd{position:absolute;top:10px;left:10px;color:#7CFC00;font-size:11px;background:rgba(0,0,0,.5);padding:6px 10px;z-index:5;pointer-events:none;display:none}
+</style>
+</head>
+<body>
+<div id="gc">
+<canvas id="gameCanvas"></canvas>
+<div id="menu">
+  <div class="mtitle">&#9935; DANICRAFT</div>
+  <div class="msub">Edición Top-Down 2D</div>
+  <button class="mbtn p" onclick="showNW()">&#127757; Nuevo Mundo</button>
+  <button class="mbtn" onclick="showNW(true)">&#127922; Mundo Aleatorio</button>
+</div>
+<div id="nw">
+  <div class="stitle">&#9935; NUEVO MUNDO</div>
+  <div class="slbl">SEMILLA DEL MUNDO</div>
+  <input class="sinp" id="si" placeholder="Escribe una semilla..." maxlength="20"/>
+  <div class="shint">Déjalo vacío para semilla aleatoria</div>
+  <button class="mbtn p" onclick="startGame()">&#9654; ¡JUGAR!</button>
+  <button class="mbtn" style="margin-top:4px" onclick="backMenu()">&#8592; Volver</button>
+</div>
+<div id="hud"><div id="hotbar"></div></div>
+<div id="invover" onclick="closeInv(event)">
+  <div id="invbox">
+    <div class="it">INVENTARIO</div>
+    <div class="ig" id="ig"></div>
+    <div class="it">BARRA RÁPIDA</div>
+    <div class="ig" id="ihg"></div>
+  </div>
+</div>
+<div id="ch">WASD / Flechas &nbsp;Mover<br>CLICK &nbsp;Minar bloque<br>E &nbsp;Inventario<br>1-9 &nbsp;Slot</div>
+<div id="sd"></div>
+</div>
+<script>
+const canvas=document.getElementById('gameCanvas'),ctx=canvas.getContext('2d');
+const T=40;
+const WW=80,WH=80;
+const MS=3;
+
+const B={AIR:0,GRASS:1,DIRT:2,STONE:3,LOG:4,LEAVES:5,SAND:6,WATER:7,COAL:8,IRON:9,GOLD:10,DIA:11,PATH:12,FLOWER:13,TALL_GRASS:14};
+
+const BI={
+  1: {name:'Hierba',    base:'#4a8a2a', detail:'#3a7a1a', accent:'#5a9a3a'},
+  2: {name:'Tierra',    base:'#7a4e2c', detail:'#6a3e1c', accent:'#8a5e3c'},
+  3: {name:'Piedra',    base:'#777',    detail:'#666',    accent:'#888'},
+  4: {name:'Madera',    base:'#6b4226', detail:'#5a3216', accent:'#7c5236', ring:true},
+  5: {name:'Hojas',     base:'#2a6a1a', detail:'#1a5a0a', accent:'#3a7a2a', round:true},
+  6: {name:'Arena',     base:'#d4c27a', detail:'#c4b26a', accent:'#e4d28a'},
+  7: {name:'Agua',      base:'#1a6aaa', detail:'#0a5a9a', accent:'#2a7aba', water:true},
+  8: {name:'Carbon',    base:'#555',    detail:'#333',    accent:'#666',    ore:'#111'},
+  9: {name:'Hierro',    base:'#888',    detail:'#777',    accent:'#999',    ore:'#c89060'},
+  10:{name:'Oro',       base:'#888',    detail:'#777',    accent:'#999',    ore:'#FFD700'},
+  11:{name:'Diamante',  base:'#555',    detail:'#444',    accent:'#666',    ore:'#00e5ff'},
+  12:{name:'Camino',    base:'#b8a070', detail:'#a89060', accent:'#c8b080'},
+  13:{name:'Flor',      base:'#4a8a2a', detail:'#3a7a1a', accent:'#5a9a3a', flower:true},
+  14:{name:'Pasto alto',base:'#3a7a1a', detail:'#2a6a0a', accent:'#4a8a2a', tallgrass:true},
+};
+
+let world=[],seed=0,cam={x:0,y:0},invOpen=false,gameStarted=false,keys={},mouseX=0,mouseY=0,mineIv=null,af=0;
+let hotbar=[0,0,0,0,0,0,0,0,0],hcount=[0,0,0,0,0,0,0,0,0],selSlot=0,inventory={};
+let p={x:40,y:40,dir:2};
+
+let rngS=0;
+function rng(){rngS=(rngS*1664525+1013904223)&0xffffffff;return(rngS>>>0)/0xffffffff}
+function initR(s){rngS=s|0}
+function hashS(str){let h=0;for(let i=0;i<str.length;i++)h=(Math.imul(31,h)+str.charCodeAt(i))|0;return h}
+
+function genWorld(sv){
+  initR(sv);world=[];
+  for(let x=0;x<WW;x++){world[x]=[];for(let y=0;y<WH;y++)world[x][y]={ground:B.GRASS,obj:B.AIR};}
+  let nv=[];for(let i=0;i<WW*WH;i++)nv.push(rng());
+  function noise(x,y){return nv[(((x%WW)+WW)%WW+(((y%WH)+WH)%WH)*WW)%nv.length]}
+  function smoothN(x,y,sc){
+    let fx=x/sc,fy=y/sc,ix=Math.floor(fx),iy=Math.floor(fy),tx=fx-ix,ty=fy-iy;
+    let a=noise(ix,iy),b=noise(ix+1,iy),c=noise(ix,iy+1),d=noise(ix+1,iy+1);
+    let u=tx*tx*(3-2*tx),v=ty*ty*(3-2*ty);
+    return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v;
+  }
+  for(let x=0;x<WW;x++)for(let y=0;y<WH;y++){
+    let h=smoothN(x,y,12)*.5+smoothN(x,y,6)*.3+smoothN(x,y,3)*.2;
+    let m=smoothN(x+100,y+100,15);
+    if(h<0.3){world[x][y].ground=B.WATER;continue}
+    if(h<0.35){world[x][y].ground=B.SAND;continue}
+    if(h>0.75){
+      world[x][y].ground=B.STONE;
+      let r2=rng();
+      if(r2<0.04)world[x][y].obj=B.COAL;
+      else if(r2<0.07)world[x][y].obj=B.IRON;
+      else if(r2<0.09)world[x][y].obj=B.GOLD;
+      else if(r2<0.095)world[x][y].obj=B.DIA;
+      continue;
+    }
+    if(m>0.65){world[x][y].ground=B.DIRT;continue}
+    let r=rng();
+    if(r<0.08)world[x][y].obj=B.TALL_GRASS;
+    else if(r<0.10)world[x][y].obj=B.FLOWER;
+  }
+  for(let x=2;x<WW-2;x++)for(let y=2;y<WH-2;y++){
+    if(world[x][y].ground===B.GRASS&&world[x][y].obj===B.AIR&&rng()<0.04){
+      for(let lx=x-2;lx<=x+2;lx++)for(let ly=y-2;ly<=y+2;ly++)
+        if(lx>=0&&lx<WW&&ly>=0&&ly<WH&&world[lx][ly].ground===B.GRASS)world[lx][ly].obj=B.LEAVES;
+      world[x][y].obj=B.LOG;
+    }
+  }
+  for(let i=0;i<3;i++){
+    let px2=Math.floor(rng()*WW),py2=Math.floor(rng()*WH),len=Math.floor(rng()*30)+15,dx2=rng()>.5?1:-1,dy2=0;
+    for(let j=0;j<len;j++){
+      if(px2>=0&&px2<WW&&py2>=0&&py2<WH&&world[px2][py2].ground===B.GRASS){world[px2][py2].ground=B.PATH;world[px2][py2].obj=B.AIR}
+      if(rng()<0.3){dy2=rng()>.5?1:-1;dx2=0}else if(rng()<0.3){dx2=rng()>.5?1:-1;dy2=0}
+      px2+=dx2;py2+=dy2;
+    }
+  }
+  p.x=40;p.y=40;p.dir=2;
+  if(world[40][40].ground===B.WATER){
+    outer:for(let r2=1;r2<20;r2++)for(let dx=-r2;dx<=r2;dx++)for(let dy=-r2;dy<=r2;dy++){
+      let nx=40+dx,ny=40+dy;
+      if(nx>=0&&nx<WW&&ny>=0&&ny<WH&&world[nx][ny].ground!==B.WATER){p.x=nx;p.y=ny;break outer}
+    }
+  }
+  inventory={};hotbar=[0,0,0,0,0,0,0,0,0];hcount=[0,0,0,0,0,0,0,0,0];selSlot=0;
+}
+
+function drawTile(c2,id,x,y,s){
+  if(!id||!BI[id])return;
+  let info=BI[id];
+  if(info.water){
+    let wof=af*.02;
+    c2.fillStyle=info.base;c2.fillRect(x,y,s,s);
+    c2.fillStyle=info.accent;c2.globalAlpha=0.4+Math.sin(wof+x*.1)*.15;
+    c2.fillRect(x+2,y+2,s-4,4);c2.fillRect(x+4,y+s/2,s-8,3);c2.globalAlpha=1;return;
+  }
+  c2.fillStyle=info.base;c2.fillRect(x,y,s,s);
+  if(info.ring){
+    c2.fillStyle=info.detail;c2.beginPath();c2.arc(x+s/2,y+s/2,s*.4,0,Math.PI*2);c2.fill();
+    c2.fillStyle=info.accent;c2.beginPath();c2.arc(x+s/2,y+s/2,s*.25,0,Math.PI*2);c2.fill();
+    c2.fillStyle=info.base;c2.beginPath();c2.arc(x+s/2,y+s/2,s*.12,0,Math.PI*2);c2.fill();
+  } else if(info.round){
+    c2.fillStyle=info.accent;c2.beginPath();c2.arc(x+s/2,y+s/2,s*.44,0,Math.PI*2);c2.fill();
+    c2.fillStyle=info.detail;
+    c2.beginPath();c2.arc(x+s*.35,y+s*.35,s*.18,0,Math.PI*2);c2.fill();
+    c2.beginPath();c2.arc(x+s*.65,y+s*.4,s*.15,0,Math.PI*2);c2.fill();
+    c2.beginPath();c2.arc(x+s*.5,y+s*.65,s*.16,0,Math.PI*2);c2.fill();
+  } else if(info.flower){
+    c2.fillStyle='#4a8a2a';c2.fillRect(x,y,s,s);
+    c2.fillStyle='#ff6688';c2.beginPath();c2.arc(x+s/2,y+s/2,s*.18,0,Math.PI*2);c2.fill();
+    c2.fillStyle='#ffee44';c2.beginPath();c2.arc(x+s/2,y+s/2,s*.09,0,Math.PI*2);c2.fill();
+    for(let a=0;a<5;a++){let ang=a/5*Math.PI*2,pr=s*.2;c2.fillStyle='#ff88aa';c2.beginPath();c2.arc(x+s/2+Math.cos(ang)*pr,y+s/2+Math.sin(ang)*pr,s*.1,0,Math.PI*2);c2.fill()}
+  } else if(info.tallgrass){
+    c2.fillStyle='#4a8a2a';c2.fillRect(x,y,s,s);
+    c2.strokeStyle='#2a6a0a';c2.lineWidth=2;
+    for(let i=0;i<5;i++){let gx=x+4+i*(s-8)/4,gy=y+s*.7;c2.beginPath();c2.moveTo(gx,gy);c2.lineTo(gx-3,gy-s*.5);c2.stroke();c2.beginPath();c2.moveTo(gx,gy);c2.lineTo(gx+3,gy-s*.45);c2.stroke()}
+  } else if(info.ore){
+    c2.fillStyle=info.detail;c2.fillRect(x+2,y+2,s*.3,s*.3);c2.fillRect(x+s*.6,y+s*.5,s*.3,s*.3);
+    c2.fillStyle=info.ore;c2.fillRect(x+s*.2,y+s*.2,s*.25,s*.2);c2.fillRect(x+s*.55,y+s*.55,s*.2,s*.2);c2.fillRect(x+s*.6,y+s*.2,s*.15,s*.15);
+  } else {
+    c2.fillStyle=info.detail;c2.fillRect(x+2,y+2,s*.28,s*.28);c2.fillRect(x+s*.6,y+s*.55,s*.25,s*.22);
+    c2.fillStyle=info.accent;c2.fillRect(x+s*.35,y+s*.6,s*.2,s*.18);
+  }
+  c2.strokeStyle='rgba(0,0,0,0.18)';c2.lineWidth=.5;c2.strokeRect(x+.25,y+.25,s-.5,s-.5);
+}
+
+function drawPlayer(px,py,dir){
+  let r=T*.46,cx=px,cy=py;
+  ctx.fillStyle='rgba(0,0,0,0.22)';ctx.beginPath();ctx.ellipse(cx+2,cy+3,r*.85,r*.55,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#4a90d9';ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle='#2a6aaa';ctx.lineWidth=1.5;ctx.stroke();
+  let angles=[Math.PI*1.5,0,Math.PI*.5,Math.PI];
+  let ang=angles[dir],hdist=r*.55,hx=cx+Math.cos(ang)*hdist,hy=cy+Math.sin(ang)*hdist,hr=r*.52;
+  ctx.fillStyle='#ffcc88';ctx.beginPath();ctx.arc(cx+Math.cos(ang)*r*.3,cy+Math.sin(ang)*r*.3,r*.22,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#ffcc88';ctx.beginPath();ctx.arc(hx,hy,hr,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle='#cc9944';ctx.lineWidth=1.2;ctx.stroke();
+  let hairAng=ang+Math.PI;
+  ctx.fillStyle='#5a3010';ctx.beginPath();ctx.arc(hx+Math.cos(hairAng)*hr*.4,hy+Math.sin(hairAng)*hr*.4,hr*.65,hairAng-Math.PI*.45,hairAng+Math.PI*.45);ctx.fill();
+  let eyeAng1=ang-Math.PI*.25,eyeAng2=ang+Math.PI*.25,er=hr*.45;
+  ctx.fillStyle='#222';
+  ctx.beginPath();ctx.arc(hx+Math.cos(eyeAng1)*er,hy+Math.sin(eyeAng1)*er,2.5,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.arc(hx+Math.cos(eyeAng2)*er,hy+Math.sin(eyeAng2)*er,2.5,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#4a8af0';
+  ctx.beginPath();ctx.arc(hx+Math.cos(eyeAng1)*er,hy+Math.sin(eyeAng1)*er,1.2,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.arc(hx+Math.cos(eyeAng2)*er,hy+Math.sin(eyeAng2)*er,1.2,0,Math.PI*2);ctx.fill();
+  let legAng=ang+Math.PI,legSwing=Math.sin(af*.25)*r*.35,lperp={x:Math.cos(ang+Math.PI*.5),y:Math.sin(ang+Math.PI*.5)},lbase=r*.55;
+  ctx.fillStyle='#3355cc';
+  for(let s2 of[-1,1]){
+    let lx=cx+Math.cos(legAng)*lbase+lperp.x*s2*r*.28+Math.cos(legAng)*legSwing*s2*.5;
+    let ly=cy+Math.sin(legAng)*lbase+lperp.y*s2*r*.28+Math.sin(legAng)*legSwing*s2*.5;
+    ctx.beginPath();ctx.ellipse(lx,ly,4,7,ang,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#111';ctx.beginPath();ctx.ellipse(lx+Math.cos(legAng)*5,ly+Math.sin(legAng)*5,5,3.5,ang,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#3355cc';
+  }
+  let perpAng=ang+Math.PI*.5;
+  ctx.fillStyle='#ffcc88';
+  for(let s2 of[-1,1]){let ax=cx+Math.cos(perpAng)*s2*r*.9,ay=cy+Math.sin(perpAng)*s2*r*.9;ctx.beginPath();ctx.ellipse(ax,ay,4,7,perpAng,0,Math.PI*2);ctx.fill()}
+}
+
+function isWalkable(tx,ty){
+  if(tx<0||tx>=WW||ty<0||ty>=WH)return false;
+  let cell=world[tx][ty];
+  if(cell.ground===B.WATER)return false;
+  if(cell.obj===B.LOG||cell.obj===B.STONE||cell.obj===B.COAL||cell.obj===B.IRON||cell.obj===B.GOLD||cell.obj===B.DIA)return false;
+  return true;
+}
+
+function updatePlayer(){
+  let dx=0,dy=0;
+  if(keys['a']||keys['ArrowLeft'])dx=-1;
+  if(keys['d']||keys['ArrowRight'])dx=1;
+  if(keys['w']||keys['ArrowUp'])dy=-1;
+  if(keys['s']||keys['ArrowDown'])dy=1;
+  if(dx!==0&&dy!==0){dx*=0.707;dy*=0.707}
+  let spd=MS/T,nx=p.x+dx*spd,ny=p.y+dy*spd,margin=0.45;
+  if(dx>0.1)p.dir=1;else if(dx<-0.1)p.dir=3;else if(dy>0.1)p.dir=2;else if(dy<-0.1)p.dir=0;
+  if(isWalkable(Math.floor(nx+margin),Math.floor(p.y+margin))&&isWalkable(Math.floor(nx+margin),Math.floor(p.y-margin))&&
+     isWalkable(Math.floor(nx-margin),Math.floor(p.y+margin))&&isWalkable(Math.floor(nx-margin),Math.floor(p.y-margin)))p.x=nx;
+  if(isWalkable(Math.floor(p.x+margin),Math.floor(ny+margin))&&isWalkable(Math.floor(p.x+margin),Math.floor(ny-margin))&&
+     isWalkable(Math.floor(p.x-margin),Math.floor(ny+margin))&&isWalkable(Math.floor(p.x-margin),Math.floor(ny-margin)))p.y=ny;
+  p.x=Math.max(0.5,Math.min(WW-.5,p.x));p.y=Math.max(0.5,Math.min(WH-.5,p.y));
+}
+
+function updateCam(){
+  cam.x=p.x*T-canvas.width/2;cam.y=p.y*T-canvas.height/2;
+  cam.x=Math.max(0,Math.min(cam.x,WW*T-canvas.width));
+  cam.y=Math.max(0,Math.min(cam.y,WH*T-canvas.height));
+}
+
+function mineBlock(){
+  let wx=mouseX+cam.x,wy=mouseY+cam.y,tx=Math.floor(wx/T),ty=Math.floor(wy/T);
+  if(tx<0||tx>=WW||ty<0||ty>=WH)return;
+  let cell=world[tx][ty],dx=tx+0.5-p.x,dy=ty+0.5-p.y;
+  if(Math.sqrt(dx*dx+dy*dy)>4)return;
+  if(cell.obj&&cell.obj!==B.AIR){addInv(cell.obj);world[tx][ty].obj=B.AIR;return}
+  if(cell.ground&&cell.ground!==B.WATER&&cell.ground!==B.AIR){addInv(cell.ground);world[tx][ty].ground=B.DIRT;return}
+}
+
+function addInv(id){
+  for(let i=0;i<9;i++)if(hotbar[i]===id){hcount[i]++;updateHUD();return}
+  for(let i=0;i<9;i++)if(!hotbar[i]){hotbar[i]=id;hcount[i]=1;updateHUD();return}
+  inventory[id]=(inventory[id]||0)+1;
+}
+
+function render(){
+  let cw=canvas.width,ch=canvas.height;
+  ctx.clearRect(0,0,cw,ch);
+  let tx0=Math.max(0,Math.floor(cam.x/T)-1),tx1=Math.min(WW,tx0+Math.ceil(cw/T)+2);
+  let ty0=Math.max(0,Math.floor(cam.y/T)-1),ty1=Math.min(WH,ty0+Math.ceil(ch/T)+2);
+  for(let x=tx0;x<tx1;x++)for(let y=ty0;y<ty1;y++){
+    let cell=world[x][y],sx=x*T-cam.x,sy=y*T-cam.y;
+    drawTile(ctx,cell.ground,sx,sy,T);
+    if(cell.obj)drawTile(ctx,cell.obj,sx,sy,T);
+  }
+  let wx=mouseX+cam.x,wy=mouseY+cam.y,tx=Math.floor(wx/T),ty=Math.floor(wy/T);
+  if(tx>=0&&tx<WW&&ty>=0&&ty<WH){
+    let dx=tx+0.5-p.x,dy=ty+0.5-p.y;
+    if(Math.sqrt(dx*dx+dy*dy)<=4){
+      ctx.strokeStyle='rgba(255,255,255,.8)';ctx.lineWidth=2;ctx.strokeRect(tx*T-cam.x+1,ty*T-cam.y+1,T-2,T-2);
+      ctx.fillStyle='rgba(255,255,255,.12)';ctx.fillRect(tx*T-cam.x,ty*T-cam.y,T,T);
+    }
+  }
+  drawPlayer(p.x*T-cam.x,p.y*T-cam.y,p.dir);
+}
+
+function updateHUD(){
+  let hb=document.getElementById('hotbar');hb.innerHTML='';
+  for(let i=0;i<9;i++){
+    let sl=document.createElement('div');sl.className='hs'+(i===selSlot?' sel':'');
+    sl.onclick=()=>{selSlot=i;updateHUD()};
+    if(hotbar[i]){
+      let c=document.createElement('canvas');c.width=36;c.height=36;
+      drawTile(c.getContext('2d'),hotbar[i],0,0,36);sl.appendChild(c);
+      let n=document.createElement('span');n.className='sc';n.textContent=hcount[i];sl.appendChild(n);
+    }
+    hb.appendChild(sl);
+  }
+}
+function openInv(){
+  invOpen=true;document.getElementById('invover').style.display='flex';
+  let g=document.getElementById('ig');g.innerHTML='';
+  for(let id in inventory){
+    let sl=document.createElement('div');sl.className='is';
+    let c=document.createElement('canvas');c.width=32;c.height=32;
+    drawTile(c.getContext('2d'),+id,0,0,32);sl.appendChild(c);
+    let n=document.createElement('span');n.className='isc';n.textContent=inventory[id];sl.appendChild(n);
+    g.appendChild(sl);
+  }
+  let hg=document.getElementById('ihg');hg.innerHTML='';
+  for(let i=0;i<9;i++){
+    let sl=document.createElement('div');sl.className='is';
+    if(hotbar[i]){
+      let c=document.createElement('canvas');c.width=32;c.height=32;
+      drawTile(c.getContext('2d'),hotbar[i],0,0,32);sl.appendChild(c);
+      let n=document.createElement('span');n.className='isc';n.textContent=hcount[i];sl.appendChild(n);
+    }
+    hg.appendChild(sl);
+  }
+}
+function closeInv(e){if(e.target===document.getElementById('invover')){invOpen=false;document.getElementById('invover').style.display='none'}}
+
+let lt=0;
+function loop(ts){
+  let dt=Math.min((ts-lt)/16.67,3);lt=ts;
+  if(gameStarted&&!invOpen){updatePlayer();updateCam();af++}
+  if(gameStarted)render();
+  requestAnimationFrame(loop);
+}
+document.addEventListener('keydown',e=>{
+  keys[e.key]=true;
+  if(!gameStarted)return;
+  if(e.key==='e'||e.key==='E'){if(invOpen){invOpen=false;document.getElementById('invover').style.display='none'}else openInv()}
+  if(e.key>='1'&&e.key<='9'){selSlot=+e.key-1;updateHUD()}
+  e.preventDefault();
+});
+document.addEventListener('keyup',e=>{keys[e.key]=false});
+canvas.addEventListener('mousemove',e=>{let r=canvas.getBoundingClientRect();mouseX=(e.clientX-r.left)*(canvas.width/r.width);mouseY=(e.clientY-r.top)*(canvas.height/r.height)});
+canvas.addEventListener('mousedown',e=>{if(!gameStarted||invOpen)return;mineBlock();mineIv=setInterval(mineBlock,250)});
+canvas.addEventListener('mouseup',()=>clearInterval(mineIv));
+canvas.addEventListener('mouseleave',()=>clearInterval(mineIv));
+canvas.addEventListener('touchmove',e=>{e.preventDefault();let r=canvas.getBoundingClientRect(),t=e.touches[0];mouseX=(t.clientX-r.left)*(canvas.width/r.width);mouseY=(t.clientY-r.top)*(canvas.height/r.height)},{passive:false});
+canvas.addEventListener('touchstart',e=>{if(!gameStarted||invOpen)return;let r=canvas.getBoundingClientRect(),t=e.touches[0];mouseX=(t.clientX-r.left)*(canvas.width/r.width);mouseY=(t.clientY-r.top)*(canvas.height/r.height);mineBlock()});
+
+function resize(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;if(gameStarted)updateCam()}
+window.addEventListener('resize',resize);resize();
+
+function showNW(rand){
+  document.getElementById('menu').style.display='none';
+  document.getElementById('nw').style.display='flex';
+  if(rand)document.getElementById('si').value=Math.floor(Math.random()*999999)+'';
+  else document.getElementById('si').value='';
+}
+function backMenu(){document.getElementById('nw').style.display='none';document.getElementById('menu').style.display='flex'}
+function startGame(){
+  let sv=document.getElementById('si').value.trim()||Math.floor(Math.random()*999999)+'';
+  seed=hashS(sv);
+  document.getElementById('nw').style.display='none';
+  document.getElementById('menu').style.display='none';
+  document.getElementById('hud').style.display='flex';
+  document.getElementById('ch').style.display='block';
+  document.getElementById('sd').style.display='block';
+  document.getElementById('sd').textContent='Semilla: '+sv;
+  genWorld(seed);updateHUD();gameStarted=true;updateCam();
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
